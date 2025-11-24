@@ -53,7 +53,26 @@ async def ask_openai(user_id: int, user_text: str) -> str:
         max_output_tokens=600
     )
 
-    answer = resp.output_text.strip()
+    # універсально дістаємо текст з Responses API
+    answer = ""
+    try:
+        answer = (resp.output_text or "").strip()
+    except Exception:
+        pass
+
+    if not answer:
+        try:
+            parts = []
+            for item in resp.output:
+                for c in getattr(item, "content", []):
+                    if getattr(c, "type", None) == "output_text":
+                        parts.append(c.text)
+            answer = "\n".join(parts).strip()
+        except Exception:
+            answer = ""
+
+    if not answer:
+        answer = "AI нічого не відповів. Спробуй перефразувати."
 
     user_history[user_id].append({"role": "user", "content": user_text})
     user_history[user_id].append({"role": "assistant", "content": answer})
