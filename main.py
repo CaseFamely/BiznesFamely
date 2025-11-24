@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 from openai import OpenAI
 
@@ -20,21 +21,20 @@ logging.basicConfig(level=logging.INFO)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode=ParseMode.HTML)
+bot = Bot(
+    token=TELEGRAM_BOT_TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
+
 dp = Dispatcher()
 
 HISTORY_LIMIT = 12
 user_history = defaultdict(lambda: deque(maxlen=HISTORY_LIMIT))
 
 SYSTEM_PROMPT = """
-Ти — приватний Telegram-помічник з фокусом на тому, щоб допомогти людині
-стати фінансово успішною з нуля і без вкладень, через легальні, етичні методи онлайн-заробітку.
-Твій стиль: конкретика, покрокові плани, мінімум "води", адаптація під ресурс користувача (телефон, Україна).
-Завжди:
-- уточнюй ціль користувача (сума/термін/навички), але не задавай багато питань одразу;
-- давай 2–4 реальні варіанти, пояснюй ризики й час до результату;
-- пропонуй дії на сьогодні/цього тижня;
-- не рекомендуй шахрайство, сіру схему, порушення законів або маніпуляції.
+Ти — приватний Telegram-помічник, який допомагає людям ставати успішними,
+заробляти онлайн з нуля і без вкладень. Даєш чіткі, практичні поради,
+покрокові плани, ніяких сірих чи незаконних методів.
 """
 
 def build_messages(user_id: int, user_text: str):
@@ -63,15 +63,14 @@ async def ask_openai(user_id: int, user_text: str) -> str:
 @dp.message(CommandStart())
 async def start(message: types.Message):
     await message.answer(
-        "Привіт! Я AI-помічник.\n\n"
-        "Допомагаю стартувати заробіток онлайн з нуля і без вкладень: ніша, план дій, перевірка ідей.\n\n"
-        "Напиши, яку суму хочеш заробляти на місяць і що тобі цікаво."
+        "Привіт! Я AI помічник, який допоможе тобі заробляти онлайн з нуля.\n"
+        "Напиши, яку суму хочеш заробляти, і я підкажу план."
     )
 
 @dp.message(F.text)
 async def chat(message: types.Message):
-    await message.chat.do(types.ChatAction.TYPING)
     try:
+        await message.chat.do(types.ChatAction.TYPING)
         answer = await ask_openai(message.from_user.id, message.text)
     except Exception:
         answer = "Помилка AI. Спробуй ще раз."
